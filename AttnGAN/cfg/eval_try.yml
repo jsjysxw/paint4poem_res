@@ -5,7 +5,7 @@ DATA_DIR: '../data/Paint4Poem-Zikai-poem-subset/poem_image'
 GPU_ID: 0
 WORKERS: 1
 
-B_VALIDATION: True  # True  # False
+B_VALIDATION: False  # True  # False
 TREE:
     BRANCH_NUM: 3
 
@@ -13,15 +13,15 @@ TREE:
 TRAIN:
     TRAINER: 'condGANTrainer'
     FLAG: False
-    NET_G: '../output/TF_poem/diff_lambda/lambda_0/netG_epoch_1000.pth'
+    NET_G: '../output/zikai_poem_from_scratch_lambda100_2022_02_26_13_48_43/Model/netG_epoch_1000.pth'
     #'../output/attn/zikai_poem/netG_epoch_600.pth'
     #'../output/TF_poem/tf_from_caption/Model/netG_epoch_650.pth'
     #'../output/5_26_colab/second_from_stratch/Model/netG_epoch_800.pth'
     #'../output/attn/zikai_poem/netG_epoch_600.pth'
 
     B_NET_D: False
-    BATCH_SIZE: 5
-    NET_E: '../output/attn/zikai_poem/text_encoder600.pth'
+    BATCH_SIZE: 10
+    NET_E: '../output/zikai_poem_DAMSM_2021_11_26_07_04_16/Model/text_encoder600.pth'
 
 
 GAN:

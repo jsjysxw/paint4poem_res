@@ -27,19 +27,26 @@ else:
 
 
 def prepare_data(data):
-    imgs, captions, captions_lens, class_ids, keys = data
+    imgs, captions, captions_lens, class_ids, keys, imgs_sketch= data
 
     # sort data by the length in a decreasing order
     sorted_cap_lens, sorted_cap_indices = \
         torch.sort(captions_lens, 0, True)
 
     real_imgs = []
+    real_imgs_sketch = []
     for i in range(len(imgs)):
         imgs[i] = imgs[i][sorted_cap_indices]
         if cfg.CUDA:
             real_imgs.append(Variable(imgs[i]).cuda())
         else:
             real_imgs.append(Variable(imgs[i]))
+    for i in range(len(imgs_sketch)):
+        imgs_sketch[i] = imgs_sketch[i][sorted_cap_indices]
+        if cfg.CUDA:
+            real_imgs_sketch.append(Variable(imgs_sketch[i]).cuda())
+        else:
+            real_imgs_sketch.append(Variable(imgs_sketch[i]))
 
     captions = captions[sorted_cap_indices].squeeze()
     class_ids = class_ids[sorted_cap_indices].numpy()
@@ -54,7 +61,7 @@ def prepare_data(data):
         sorted_cap_lens = Variable(sorted_cap_lens)
 
     return [real_imgs, captions, sorted_cap_lens,
-            class_ids, keys]
+            class_ids, keys, real_imgs_sketch]
 
 
 def get_imgs(img_path, imsize, bbox=None,
@@ -491,24 +498,47 @@ class ChiTextDataset(TextDataset):
         #print("data_dir here is: ", data_dir)
         #os.system("pause")
         #print("do you see it?")
+
+        # if os.path.exists('%s/images/%s.PNG' % (data_dir, key)):
+        #     img_name = '%s/images/%s.PNG' % (data_dir, key)
+        # elif os.path.exists('%s/images/%s.jpg' % (data_dir, key)):
+        #     img_name = '%s/images/%s.jpg' % (data_dir, key)
+        # elif os.path.exists('%s/images/%s.png' % (data_dir, key)):
+        #     img_name = '%s/images/%s.png' % (data_dir, key)
+        # elif os.path.exists('%s/images/%s.jpeg' % (data_dir, key)):
+        #     img_name = '%s/images/%s.jpeg' % (data_dir, key)
+        #
+        # imgs = get_imgs(img_name, self.imsize,
+        #                 bbox, self.transform, normalize=self.norm)
+        # # random select a sentence
+        # sent_ix = random.randint(0, self.embeddings_num)
+        # new_sent_ix = index * self.embeddings_num + sent_ix
+        # caps, cap_len = self.get_caption(new_sent_ix)
+        # return imgs, caps, cap_len, cls_id, key
         if os.path.exists('%s/images/%s.PNG' % (data_dir, key)):
             img_name = '%s/images/%s.PNG' % (data_dir, key)
+            img_name1 = '%s/images1/%s_s.png' % (data_dir, key)
         elif os.path.exists('%s/images/%s.jpg' % (data_dir, key)):
             img_name = '%s/images/%s.jpg' % (data_dir, key)
+            img_name1 = '%s/images1/%s_s.png' % (data_dir, key)
         elif os.path.exists('%s/images/%s.png' % (data_dir, key)):
             img_name = '%s/images/%s.png' % (data_dir, key)
+            img_name1 = '%s/images1/%s_s.png' % (data_dir, key)
         elif os.path.exists('%s/images/%s.jpeg' % (data_dir, key)):
             img_name = '%s/images/%s.jpeg' % (data_dir, key)
+            img_name1 = '%s/images1/%s_s.png' % (data_dir, key)
 
         imgs = get_imgs(img_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)
+        imgs_sketch = get_imgs(img_name1, self.imsize,
+                         bbox, self.transform, normalize=self.norm)
         # random select a sentence
         sent_ix = random.randint(0, self.embeddings_num)
         new_sent_ix = index * self.embeddings_num + sent_ix
         caps, cap_len = self.get_caption(new_sent_ix)
-        return imgs, caps, cap_len, cls_id, key
-        
-    ### changed/added R PRECISION ###########
+        return imgs, caps, cap_len, cls_id, key, imgs_sketch
+
+### changed/added R PRECISION ###########
     def get_mis_caption(self, cls_id):
         mis_match_captions_t = []
         mis_match_captions = torch.zeros(9, cfg.TEXT.WORDS_NUM)

@@ -118,6 +118,7 @@ if __name__ == "__main__":
     split_dir, bshuffle = 'train', True
     if not cfg.TRAIN.FLAG:
         # bshuffle = False
+        # split_dir = 'train'
         split_dir = 'test'
 
     # Get data loader
@@ -146,6 +147,7 @@ if __name__ == "__main__":
         if cfg.B_VALIDATION:
             algo.sampling(split_dir,args.eval_offset)  # generate images for the whole valid dataset
         else:
-            gen_example(dataset.wordtoix, algo)  # generate images for customized captions
+            # gen_example(dataset.wordtoix, algo)  # generate images for customized captions
+            algo.gen_examplesss()
     end_t = time.time()
     print('Total time for training:', end_t - start_t)

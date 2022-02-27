@@ -27,7 +27,7 @@ COLOR_DIC = {0:[128,64,128],  1:[244, 35,232],
 FONT_MAX = 50
 
 
-def drawCaption(convas, captions, ixtoword, vis_size, off1=2, off2=2):
+def drawCaption(convas, captions, ixtoword, vis_size, off1=2, off2=2, keys=None):
     num = captions.size(0)
     img_txt = Image.fromarray(convas)
     # get a font
@@ -43,13 +43,27 @@ def drawCaption(convas, captions, ixtoword, vis_size, off1=2, off2=2):
         sentence = []
         for j in range(len(cap)):
             if cap[j] == 0:
+                if keys is not None:
+                    name = keys[i]
+                    d.text(((j + off1) * (vis_size + off2), i * FONT_MAX), '%s' % (name),
+                           font=fnt, fill=(255, 255, 255, 255))
+                    break
                 break
-            word = ixtoword[cap[j]].encode('ascii', 'ignore').decode('ascii')
-            if len(word)< 1:
+            else:
                 word = ixtoword[cap[j]].encode('utf-8', 'ignore').decode('utf-8')
-            d.text(((j + off1) * (vis_size + off2), i * FONT_MAX), '%d:%s' % (j, word[:6]),
-                   font=fnt, fill=(255, 255, 255, 255))
-            sentence.append(word)
+                if len(word) < 1:
+                    word = ixtoword[cap[j]].encode('utf-8', 'ignore').decode('utf-8')
+                d.text(((j + off1) * (vis_size + off2), i * FONT_MAX), '%d:%s' % (j, word[:6]),
+                       font=fnt, fill=(255, 255, 255, 255))
+                sentence.append(word)
+                
+            #     break
+            # word = ixtoword[cap[j]].encode('ascii', 'ignore').decode('ascii')
+            # if len(word)< 1:
+            #     word = ixtoword[cap[j]].encode('utf-8', 'ignore').decode('utf-8')
+            # d.text(((j + off1) * (vis_size + off2), i * FONT_MAX), '%d:%s' % (j, word[:6]),
+            #       font=fnt, fill=(255, 255, 255, 255))
+            # sentence.append(word)
         sentence_list.append(sentence)
     return img_txt, sentence_list
 
@@ -57,7 +71,7 @@ def drawCaption(convas, captions, ixtoword, vis_size, off1=2, off2=2):
 def build_super_images(real_imgs, captions, ixtoword,
                        attn_maps, att_sze, lr_imgs=None,
                        batch_size=cfg.TRAIN.BATCH_SIZE,
-                       max_word_num=cfg.TEXT.WORDS_NUM):
+                       max_word_num=cfg.TEXT.WORDS_NUM, keys=None):
     nvis = 8
     real_imgs = real_imgs[:nvis]
     if lr_imgs is not None:
@@ -103,7 +117,7 @@ def build_super_images(real_imgs, captions, ixtoword,
     num = nvis  # len(attn_maps)
 
     text_map, sentences = \
-        drawCaption(text_convas, captions, ixtoword, vis_size)
+        drawCaption(text_convas, captions, ixtoword, vis_size, keys=keys)
     text_map = np.asarray(text_map).astype(np.uint8)
 
     bUpdate = 1

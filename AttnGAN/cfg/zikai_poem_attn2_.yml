@@ -23,7 +23,7 @@ TRAIN:
     DISCRIMINATOR_LR: 0.0002
     GENERATOR_LR: 0.0002
     #
-    NET_E: '../output/zikai_poem_DAMSM_2021_04_11_22_57_32/Model/text_encoder600.pth'
+    NET_E: '../output/zikai_poem_DAMSM_2021_11_26_07_04_16/Model/text_encoder600.pth'
     #'../output/DAMSM/zikai_poem_DAMSM_2021_01_07_01_29_54/Model/text_encoder550.pth'
     SMOOTH:
         GAMMA1: 4.0  # 1,2,5 good 4 best  10&100bad

@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from pix2pix.networks import ResnetGenerator, get_norm_layer
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 
@@ -388,9 +389,13 @@ class GET_IMAGE_G(nn.Module):
             conv3x3(ngf, 3),
             nn.Tanh()
         )
+        norm_layer = get_norm_layer(norm_type='batch')
+        self.net = ResnetGenerator(6, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=9)
 
-    def forward(self, h_code):
-        out_img = self.img(h_code)
+    def forward(self, h_code, img_ketch):
+        out_img1 = self.img(h_code)
+        concat = torch.cat((out_img1* 0.4, img_ketch), 1)
+        out_img = self.net(concat)
         return out_img
 
 
@@ -402,6 +407,9 @@ class G_NET(nn.Module):
         ncf = cfg.GAN.CONDITION_DIM
         self.ca_net = CA_NET()
 
+        # GF_DIM = ngf 32
+        # EMBEDDING_DIM = nef 256
+        # CONDITION_DIM = ncf 100
         if cfg.TREE.BRANCH_NUM > 0:
             self.h_net1 = INIT_STAGE_G(ngf * 16, ncf)
             self.img_net1 = GET_IMAGE_G(ngf)
@@ -413,13 +421,23 @@ class G_NET(nn.Module):
             self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf)
             self.img_net3 = GET_IMAGE_G(ngf)
 
-    def forward(self, z_code, sent_emb, word_embs, mask):
+    def forward(self, z_code, sent_emb, word_embs, mask, imgs_sketch):
         """
-            :param z_code: batch x cfg.GAN.Z_DIM
-            :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM
-            :param word_embs: batch x cdf x seq_len
-            :param mask: batch x seq_len
+            :param z_code: batch x cfg.GAN.Z_DIM   torch.Size([10, 100])
+            :param sent_emb: batch x cfg.TEXT.EMBEDDING_DIM    torch.Size([10, 256])
+            :param word_embs: batch x cdf x seq_len    torch.Size([10, 256, 18])
+            :param mask: batch x seq_len   torch.Size([10, 18])
+            :c_code:  torch.Size([10, 100])
             :return:
+
+            img_net1,img_net2,img_net3就是3个generate，用pix2pix的generate去融合h_code1，h_code2，h_code3然后替换掉这个网络，D的patchGan后期再替换
+            这一块就是图中的h1，h2，h3.和G1，G2，G3网络
+            h1code = torch.Size([10, 32, 64, 64])
+            h2code = torch.Size([10, 32, 128, 128])
+            h3code = torch.Size([10, 32, 256, 256])
+            fake_img1 = torch.Size([10, 3, 64, 64])
+            fake_img2 = torch.Size([10, 3, 128, 128])
+            fake_img3 = torch.Size([10, 3, 256, 256])
         """
         fake_imgs = []
         att_maps = []
@@ -427,23 +445,27 @@ class G_NET(nn.Module):
 
         if cfg.TREE.BRANCH_NUM > 0:
             h_code1 = self.h_net1(z_code, c_code)
-            fake_img1 = self.img_net1(h_code1)
+            fake_img1 = self.img_net1(h_code1, imgs_sketch[0])
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = \
                 self.h_net2(h_code1, c_code, word_embs, mask)
-            fake_img2 = self.img_net2(h_code2)
+            fake_img2 = self.img_net2(h_code2, imgs_sketch[1])
             fake_imgs.append(fake_img2)
             if att1 is not None:
                 att_maps.append(att1)
         if cfg.TREE.BRANCH_NUM > 2:
+            # h_code2 = torch.Size([10, 32, 128, 128])
+            # c_code = torch.Size([10, 100])
+            # word_embs = torch.Size([10, 256, 18])
+            # mask = torch.Size([10, 18])
             h_code3, att2 = \
                 self.h_net3(h_code2, c_code, word_embs, mask)
-            fake_img3 = self.img_net3(h_code3)
+            fake_img3 = self.img_net3(h_code3, imgs_sketch[2])
             fake_imgs.append(fake_img3)
             if att2 is not None:
                 att_maps.append(att2)
-
+# 这里就是生成的3个G网络img_net1，img_net2，img_net3
         return fake_imgs, att_maps, mu, logvar
 
 
