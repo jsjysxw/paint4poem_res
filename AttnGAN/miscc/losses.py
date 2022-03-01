@@ -239,7 +239,8 @@ def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, real_labels,
         # # tensor(7.3009, grad_fn= < MseLossBackward0 >)
         # g_loss = criterionGAN(pred_fake, True)
 
-        errG += g_loss
+        errG += 2 * g_loss * \
+                cfg.TRAIN.SMOOTH.LAMBDA*lambda_change(epoch)
         #errG_total = errG
         cond_errG_total += cond_errG
         uncond_errG_total += uncond_errG

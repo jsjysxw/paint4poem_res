@@ -29,7 +29,7 @@ TRAIN:
         GAMMA1: 4.0  # 1,2,5 good 4 best  10&100bad
         GAMMA2: 5.0
         GAMMA3: 10.0  # 10good 1&100bad
-        LAMBDA: 50.0 # initial 0.5
+        LAMBDA: 0.5 # initial 0.5
 
 
 GAN:
