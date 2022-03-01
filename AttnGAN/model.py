@@ -5,10 +5,14 @@ from torch.autograd import Variable
 from torchvision import models
 import torch.utils.model_zoo as model_zoo
 import torch.nn.functional as F
+import os
+import errno
+import numpy as np
+from PIL import Image
 
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from pix2pix.networks import ResnetGenerator, get_norm_layer
+from pix2pix.networks import ResnetGenerator, get_norm_layer, init_weights
 from miscc.config import cfg
 from GlobalAttention import GlobalAttentionGeneral as ATT_NET
 
@@ -391,13 +395,31 @@ class GET_IMAGE_G(nn.Module):
         )
         norm_layer = get_norm_layer(norm_type='batch')
         self.net = ResnetGenerator(6, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=9)
+        init_weights(self.net, init_type='normal')
 
     def forward(self, h_code, img_ketch):
         out_img1 = self.img(h_code)
-        concat = torch.cat((out_img1* 0.4, img_ketch), 1)
+        concat = torch.cat((out_img1 * 0.8, img_ketch), 1)
         out_img = self.net(concat)
         return out_img
 
+class GET_IMAGE_G2(nn.Module):
+    def __init__(self, ngf):
+        super(GET_IMAGE_G2, self).__init__()
+        self.gf_dim = ngf
+        self.img = nn.Sequential(
+            conv3x3(ngf, 3),
+            nn.Tanh()
+        )
+        norm_layer = get_norm_layer(norm_type='batch')
+        self.net = ResnetGenerator(6, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=6)
+        init_weights(self.net, init_type='normal')
+
+    def forward(self, h_code, img_ketch):
+        out_img1 = self.img(h_code)
+        concat = torch.cat((out_img1 * 0.2, img_ketch), 1)
+        out_img = self.net(concat)
+        return out_img
 
 class G_NET(nn.Module):
     def __init__(self):
@@ -419,7 +441,7 @@ class G_NET(nn.Module):
             self.img_net2 = GET_IMAGE_G(ngf)
         if cfg.TREE.BRANCH_NUM > 2:
             self.h_net3 = NEXT_STAGE_G(ngf, nef, ncf)
-            self.img_net3 = GET_IMAGE_G(ngf)
+            self.img_net3 = GET_IMAGE_G2(ngf)
 
     def forward(self, z_code, sent_emb, word_embs, mask, imgs_sketch):
         """
@@ -446,11 +468,13 @@ class G_NET(nn.Module):
         if cfg.TREE.BRANCH_NUM > 0:
             h_code1 = self.h_net1(z_code, c_code)
             fake_img1 = self.img_net1(h_code1, imgs_sketch[0])
+            # save_imgs(imgs_sketch[0],0)
             fake_imgs.append(fake_img1)
         if cfg.TREE.BRANCH_NUM > 1:
             h_code2, att1 = \
                 self.h_net2(h_code1, c_code, word_embs, mask)
             fake_img2 = self.img_net2(h_code2, imgs_sketch[1])
+            # save_imgs(imgs_sketch[1],1)
             fake_imgs.append(fake_img2)
             if att1 is not None:
                 att_maps.append(att1)
@@ -462,6 +486,7 @@ class G_NET(nn.Module):
             h_code3, att2 = \
                 self.h_net3(h_code2, c_code, word_embs, mask)
             fake_img3 = self.img_net3(h_code3, imgs_sketch[2])
+            # save_imgs(imgs_sketch[2],2)
             fake_imgs.append(fake_img3)
             if att2 is not None:
                 att_maps.append(att2)
@@ -469,6 +494,28 @@ class G_NET(nn.Module):
         return fake_imgs, att_maps, mu, logvar
 
 
+def save_imgs(imgsket, i):
+    s_tmp = "../output/Imgsss/"
+    save_dir = '%s' % (s_tmp)
+    mkdir_p(save_dir)
+    ima = imgsket[0].data.cpu().numpy()
+    ima = (ima + 1.0) * 127.5
+    ima = ima.astype(np.uint8)
+    ima = np.transpose(ima, (1, 2, 0))
+    ima = Image.fromarray(ima)
+    fullpath1 = '%s/G_%d.png' \
+                % (save_dir, i)
+    ima.save(fullpath1)
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 class G_DCGAN(nn.Module):
     def __init__(self):
