@@ -2,7 +2,7 @@ CONFIG_NAME: 'from_scratch_lambda100'
 
 DATASET_NAME: 'zikai_poem'
 DATA_DIR: '../data/Paint4Poem-Zikai-poem-subset/poem_image'
-GPU_ID: 0
+GPU_ID: -1
 WORKERS: 1
 
 
