@@ -30,7 +30,7 @@ def sent_loss(cnn_code, rnn_code, labels, class_ids,
             masks.append(mask.reshape((1, -1)))
         masks = np.concatenate(masks, 0)
         # masks: batch_size x batch_size
-        masks = torch.BoolTensor(masks) ############# changed
+        masks = torch.BoolTensor(masks)  ############# changed
         if cfg.CUDA:
             masks = masks.cuda()
 
@@ -117,7 +117,7 @@ def words_loss(img_features, words_emb, labels,
     if class_ids is not None:
         masks = np.concatenate(masks, 0)
         # masks: batch_size x batch_size
-        masks = torch.BoolTensor(masks) ########### changed
+        masks = torch.BoolTensor(masks)  ########### changed
         if cfg.CUDA:
             masks = masks.cuda()
 
@@ -136,81 +136,82 @@ def words_loss(img_features, words_emb, labels,
     return loss0, loss1, att_maps
 
 
-
-
 def DG_w_change(epoch):
-    if epoch <= 3*(cfg.TRAIN.MAX_EPOCH/6):
+    if epoch <= 3 * (cfg.TRAIN.MAX_EPOCH / 6):
         return 1
-    elif epoch <= 5*(cfg.TRAIN.MAX_EPOCH/6):
+    elif epoch <= 5 * (cfg.TRAIN.MAX_EPOCH / 6):
         return 0.5
     else:
         return 0.25
 
+
 def lambda_change(epoch):
-    if epoch <=2*(cfg.TRAIN.MAX_EPOCH/6):
+    if epoch <= 2 * (cfg.TRAIN.MAX_EPOCH / 6):
         return 1
-    elif epoch <=4*(cfg.TRAIN.MAX_EPOCH/6):
+    elif epoch <= 4 * (cfg.TRAIN.MAX_EPOCH / 6):
         return 5
     else:
         return 10
 
+
 # ##################Loss for G and Ds##############################
 def discriminator_loss(netD, real_imgs, real_b, fake_imgs, conditions,
-                       real_labels, fake_labels,epoch):
-    # Forward   原来的代码块
-    real_features = netD(real_imgs)
-    fake_features = netD(fake_imgs.detach())
-    # loss
-    # conditional loss, are image and caption of same pair, the condition here is about sentence
-    cond_real_logits = netD.COND_DNET(real_features, conditions)
-    cond_real_errD = nn.BCELoss()(cond_real_logits, real_labels)
-    cond_fake_logits = netD.COND_DNET(fake_features, conditions)
-    cond_fake_errD = nn.BCELoss()(cond_fake_logits, fake_labels)
-    #
-    batch_size = real_features.size(0)
-    cond_wrong_logits = netD.COND_DNET(real_features[:(batch_size - 1)], conditions[1:batch_size])
-    cond_wrong_errD = nn.BCELoss()(cond_wrong_logits, fake_labels[1:batch_size])
-    # unconditional loss
-    if netD.UNCOND_DNET is not None:
-        real_logits = netD.UNCOND_DNET(real_features)
-        fake_logits = netD.UNCOND_DNET(fake_features)
-        real_errD = nn.BCELoss()(real_logits, real_labels)
-        fake_errD = nn.BCELoss()(fake_logits, fake_labels)
-        errD = ((cfg.LOSS.D_w*DG_w_change(epoch)*real_errD + cond_real_errD) / 2. +
-                (cfg.LOSS.D_w*DG_w_change(epoch)*fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
-    else:
-        errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
+                       real_labels, fake_labels, epoch):
+    # ######################################## # # Forward   原来的代码块
+    # real_features = netD(real_imgs)
+    # fake_features = netD(fake_imgs.detach())
+    # # loss
+    # # conditional loss, are image and caption of same pair, the condition here is about sentence
+    # cond_real_logits = netD.COND_DNET(real_features, conditions)
+    # cond_real_errD = nn.BCELoss()(cond_real_logits, real_labels)
+    # cond_fake_logits = netD.COND_DNET(fake_features, conditions)
+    # cond_fake_errD = nn.BCELoss()(cond_fake_logits, fake_labels)
+    # #
+    # batch_size = real_features.size(0)
+    # cond_wrong_logits = netD.COND_DNET(real_features[:(batch_size - 1)], conditions[1:batch_size])
+    # cond_wrong_errD = nn.BCELoss()(cond_wrong_logits, fake_labels[1:batch_size])
+    # # unconditional loss
+    # if netD.UNCOND_DNET is not None:
+    #     real_logits = netD.UNCOND_DNET(real_features)
+    #     fake_logits = netD.UNCOND_DNET(fake_features)
+    #     real_errD = nn.BCELoss()(real_logits, real_labels)
+    #     fake_errD = nn.BCELoss()(fake_logits, fake_labels)
+    #     errD = ((cfg.LOSS.D_w * DG_w_change(epoch) * real_errD + cond_real_errD) / 2. +
+    #             (cfg.LOSS.D_w * DG_w_change(epoch) * fake_errD + cond_fake_errD + cond_wrong_errD) / 3.)
+    # else:
+    #     errD = cond_real_errD + (cond_fake_errD + cond_wrong_errD) / 2.
+    # return errD, cond_real_errD + cond_fake_errD, real_errD + fake_errD, cond_wrong_errD
+    # #############################################################
 
-    # criterionGAN = GANLoss()
-    # if cfg.CUDA:
-    #     criterionGAN = criterionGAN.cuda()
-    # # train with fake  按维数1拼接  (real_a, fake_b)（横着拼）
-    # fake_ab = torch.cat((real_imgs, fake_imgs), 1)
-    # # x.data（x.detach()） ，，x.data不能被autograd追踪求微分  torch.Size([10, 1, 30, 30])
-    # pred_fake = netD.forward(fake_ab.detach())
-    # # pred_fake  torch.Size([1, 1, 30, 30])
-    # loss_d_fake = criterionGAN(pred_fake, False)
-    #
-    # # train with real    按维数1拼接（横着拼）  torch.Size([1, 6, 256, 256])
-    # real_ab = torch.cat((real_imgs, real_b), 1)
-    # # torch.Size([1, 1, 30, 30])
-    # pred_real = netD.forward(real_ab)
-    # # tensor(4.7677, grad_fn= < MseLossBackward0 >)
-    # loss_d_real = criterionGAN(pred_real, True)
-    #
-    # # Combined D loss  tensor(3.5219, grad_fn=<MulBackward0>)
-    # loss_d = (loss_d_fake + loss_d_real) * 0.5
+    ###################### # PatchGan的代码块 ########################################
+    criterionGAN = GANLoss()
+    if cfg.CUDA:
+        criterionGAN = criterionGAN.cuda()
+    # train with fake  按维数1拼接  (real_a, fake_b)（横着拼）
+    fake_ab = torch.cat((real_b, fake_imgs), 1)
+    # x.data（x.detach()） ，，x.data不能被autograd追踪求微分  torch.Size([10, 1, 30, 30])
+    pred_fake = netD.forward(fake_ab.detach())
+    # pred_fake  torch.Size([1, 1, 30, 30])
+    loss_d_fake = criterionGAN(pred_fake, False)
+
+    # train with real    按维数1拼接（横着拼）  torch.Size([1, 6, 256, 256])
+    real_ab = torch.cat((real_b, real_imgs), 1)
+    # torch.Size([1, 1, 30, 30])
+    pred_real = netD.forward(real_ab)
+    # tensor(4.7677, grad_fn= < MseLossBackward0 >)
+    loss_d_real = criterionGAN(pred_real, True)
+
+    # Combined D loss  tensor(3.5219, grad_fn=<MulBackward0>)
+    loss_d = (loss_d_fake + loss_d_real) * 0.5
+    return loss_d, loss_d_fake, loss_d_fake + loss_d_real, loss_d_real
 
 
-    return errD, cond_real_errD+cond_fake_errD, real_errD+fake_errD, cond_wrong_errD
-    # return loss_d, loss_d_fake, loss_d_fake + loss_d_real, loss_d_real
+#############################################################
 
 
-
-def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, real_labels,
+def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, imgs, real_labels,
                    words_embs, sent_emb, match_labels,
-                   cap_lens, class_ids,epoch):
-    numDs = len(netsD)
+                   cap_lens, class_ids, epoch):
     batch_size = real_labels.size(0)
     logs = ''
     # Forward
@@ -219,55 +220,66 @@ def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, real_labels,
     errG_total = 0
     cond_errG_total = 0
     uncond_errG_total = 0
-    for i in range(numDs):
 
-        features = netsD[i](fake_imgs[i])
-        cond_logits = netsD[i].COND_DNET(features, sent_emb)
-        cond_errG = nn.BCELoss()(cond_logits, real_labels)
-        if netsD[i].UNCOND_DNET is  not None:
-            logits = netsD[i].UNCOND_DNET(features)
-            uncond_errG = nn.BCELoss()(logits, real_labels)
-            g_loss = cfg.LOSS.G_w*DG_w_change(epoch)*uncond_errG + cond_errG
-        else:
-            g_loss = cond_errG
+    ##########0#########Patch代码块############################
+    criterionGAN = GANLoss()
+    criterionL1 = nn.L1Loss()
+    if cfg.CUDA:
+        criterionGAN = criterionGAN.cuda()
+        criterionL1 = criterionL1.cuda()
+    fake_ab = torch.cat((imgs_sketch[2], fake_imgs[2]), 1)
+    pred_fake = netsD.forward(fake_ab)
+    # tensor(7.3009, grad_fn= < MseLossBackward0 >)
+    g_loss = criterionGAN(pred_fake, True)
+    loss_g_l1 = criterionL1(fake_imgs[2], imgs[2]) * 10
 
-        # criterionGAN = GANLoss()
-        # if cfg.CUDA:
-        #     criterionGAN = criterionGAN.cuda()
-        # fake_ab = torch.cat((imgs_sketch[i], fake_imgs[i]), 1)
-        # pred_fake = netsD[i].forward(fake_ab)
-        # # tensor(7.3009, grad_fn= < MseLossBackward0 >)
-        # g_loss = criterionGAN(pred_fake, True)
+    loss_g = g_loss + loss_g_l1
+    errG += loss_g
+    cond_errG_total += loss_g
+    uncond_errG_total += loss_g
+    logs += 'g_loss: %.2f ' % ( loss_g.data.item())
+    ###############################################
 
-        errG += 2 * g_loss * \
-                cfg.TRAIN.SMOOTH.LAMBDA*lambda_change(epoch)
-        #errG_total = errG
-        cond_errG_total += cond_errG
-        uncond_errG_total += uncond_errG
-        # err_img = errG_total.data[0]
-        logs += 'g_loss%d: %.2f ' % (i, g_loss.data.item())
+    # # ###################原来的代码块#############################
+    # features = netsD(fake_imgs[2])
+    # cond_logits = netsD.COND_DNET(features, sent_emb)
+    # cond_errG = nn.BCELoss()(cond_logits, real_labels)
+    # if netsD.UNCOND_DNET is not None:
+    #     logits = netsD.UNCOND_DNET(features)
+    #     uncond_errG = nn.BCELoss()(logits, real_labels)
+    #     g_loss = cfg.LOSS.G_w * DG_w_change(epoch) * uncond_errG + cond_errG
+    # else:
+    #     g_loss = cond_errG
+    # errG += g_loss * \
+    #         cfg.TRAIN.SMOOTH.LAMBDA * lambda_change(epoch)
+    # # errG_total = errG
+    # cond_errG_total += cond_errG
+    # uncond_errG_total += uncond_errG
+    # # err_img = errG_total.data[0]
+    # logs += 'g_loss: %.2f ' % (g_loss.data.item())
+    # # ################################################
 
-        # Ranking loss
-        if i == (numDs - 1):
-            # words_features: batch_size x nef x 17 x 17
-            # sent_code: batch_size x nef
-            region_features, cnn_code = image_encoder(fake_imgs[i])
-            w_loss0, w_loss1, _ = words_loss(region_features, words_embs,
-                                             match_labels, cap_lens,
-                                             class_ids, batch_size)
-            w_loss = (w_loss0 + w_loss1) * \
-                cfg.TRAIN.SMOOTH.LAMBDA*lambda_change(epoch)
-            # print("cfg.TRAIN.SMOOTH.LAMBDA is: ",cfg.TRAIN.SMOOTH.LAMBDA)
-            # err_words = err_words + w_loss.data[0]
+    # Ranking loss
 
-            s_loss0, s_loss1 = sent_loss(cnn_code, sent_emb,
-                                         match_labels, class_ids, batch_size)
-            s_loss = (s_loss0 + s_loss1) * \
-                cfg.TRAIN.SMOOTH.LAMBDA*lambda_change(epoch)
-            # err_sent = err_sent + s_loss.data[0]
+    # words_features: batch_size x nef x 17 x 17
+    # sent_code: batch_size x nef
+    region_features, cnn_code = image_encoder(fake_imgs[2])
+    w_loss0, w_loss1, _ = words_loss(region_features, words_embs,
+                                     match_labels, cap_lens,
+                                     class_ids, batch_size)
+    w_loss = (w_loss0 + w_loss1) * \
+             cfg.TRAIN.SMOOTH.LAMBDA * lambda_change(epoch)
+    # print("cfg.TRAIN.SMOOTH.LAMBDA is: ",cfg.TRAIN.SMOOTH.LAMBDA)
+    # err_words = err_words + w_loss.data[0]
 
-            errDAM += w_loss + s_loss
-            logs += 'w_loss: %.2f s_loss: %.2f ' % (w_loss.data.item(), s_loss.data.item())
+    s_loss0, s_loss1 = sent_loss(cnn_code, sent_emb,
+                                 match_labels, class_ids, batch_size)
+    s_loss = (s_loss0 + s_loss1) * \
+             cfg.TRAIN.SMOOTH.LAMBDA * lambda_change(epoch)
+    # err_sent = err_sent + s_loss.data[0]
+
+    errDAM += w_loss + s_loss
+    logs += 'w_loss: %.2f s_loss: %.2f ' % (w_loss.data.item(), s_loss.data.item())
     errG_total = errG + errDAM
     lambda_chang_epoch = lambda_change(epoch)
     return errG_total, logs, cond_errG_total, uncond_errG_total, errG, lambda_chang_epoch

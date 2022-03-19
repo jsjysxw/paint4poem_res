@@ -8,7 +8,7 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 
 from PIL import Image
-
+import errno
 from pix2pix.networks import define_D
 from pix2pix.networks import define_D64
 from pix2pix.networks import define_D128
@@ -97,18 +97,22 @@ class condGANTrainer(object):
         else:
             from model import D_NET64, D_NET128, D_NET256
             netG = G_NET()
-            if cfg.TREE.BRANCH_NUM > 0:
-                netsD.append(D_NET64())
-            if cfg.TREE.BRANCH_NUM > 1:
-                netsD.append(D_NET128())
-            if cfg.TREE.BRANCH_NUM > 2:
-                netsD.append(D_NET256())
+            # if cfg.TREE.BRANCH_NUM > 0:
+            #     netsD.append(D_NET64())
+            # if cfg.TREE.BRANCH_NUM > 1:
+            #     netsD.append(D_NET128())
+            # if cfg.TREE.BRANCH_NUM > 2:
+            #     netsD.append(D_NET256())
             # TODO: if cfg.TREE.BRANCH_NUM > 3:
+
+            netsD = define_D(4, 64, 'basic')
+            # netsD = D_NET256()
         netG.apply(weights_init)
-        # print(netG)
-        for i in range(len(netsD)):
-            netsD[i].apply(weights_init)
-            # print(netsD[i])
+
+        # for i in range(len(netsD)):
+        #     netsD[i].apply(weights_init)
+        netsD.apply(weights_init)
+
 
         # if cfg.GAN.B_DCGAN:
         #     netG = G_DCGAN()
@@ -127,7 +131,6 @@ class condGANTrainer(object):
 
         netG.apply(weights_init)
 
-        print('# of netsD', len(netsD))
         #
         epoch = 0
         if cfg.TRAIN.NET_G != '':
@@ -142,30 +145,27 @@ class condGANTrainer(object):
             epoch = int(epoch) + 1
             if cfg.TRAIN.B_NET_D:
                 Gname = cfg.TRAIN.NET_G
-                for i in range(len(netsD)):
-                    s_tmp = Gname[:Gname.rfind('/')]
-                    Dname = '%s/netD%d.pth' % (s_tmp, i)
-                    print('Load D from: ', Dname)
-                    state_dict = \
-                        torch.load(Dname, map_location=lambda storage, loc: storage)
-                    netsD[i].load_state_dict(state_dict)
+                # for i in range(len(netsD)):
+                s_tmp = Gname[:Gname.rfind('/')]
+                Dname = '%s/netD.pth' % (s_tmp)
+                print('Load D from: ', Dname)
+                state_dict = \
+                    torch.load(Dname, map_location=lambda storage, loc: storage)
+                netsD.load_state_dict(state_dict)
         # ########################################################### #
         if cfg.CUDA:
             text_encoder = text_encoder.cuda()
             image_encoder = image_encoder.cuda()
             netG.cuda()
-            for i in range(len(netsD)):
-                netsD[i].cuda()
+            # for i in range(len(netsD)):
+            netsD.cuda()
         return [text_encoder, image_encoder, netG, netsD, epoch]
 
     def define_optimizers(self, netG, netsD):
-        optimizersD = []
-        num_Ds = len(netsD)
-        for i in range(num_Ds):
-            opt = optim.Adam(netsD[i].parameters(),
-                             lr=cfg.TRAIN.DISCRIMINATOR_LR,
-                             betas=(0.5, 0.999))
-            optimizersD.append(opt)
+
+        optimizersD = optim.Adam(netsD.parameters(),
+                                 lr=cfg.TRAIN.DISCRIMINATOR_LR,
+                                 betas=(0.5, 0.999))
 
         optimizerG = optim.Adam(netG.parameters(),
                                 lr=cfg.TRAIN.GENERATOR_LR,
@@ -192,10 +192,10 @@ class condGANTrainer(object):
             '%s/netG_epoch_%d.pth' % (self.model_dir, epoch))
         load_params(netG, backup_para)
         #
-        for i in range(len(netsD)):
-            netD = netsD[i]
-            torch.save(netD.state_dict(),
-                '%s/netD%d.pth' % (self.model_dir, i))
+        # for i in range(len(netsD)):
+        netD = netsD
+        torch.save(netD.state_dict(),
+                '%s/netD.pth' % (self.model_dir))
         print('Save G/Ds models.')
 
     def set_requires_grad_value(self, models_list, brequires):
@@ -282,7 +282,8 @@ class condGANTrainer(object):
                 ######################################################
                 data = data_iter.next()
                 imgs, captions, cap_lens, class_ids, keys, imgs_sketch = prepare_data(data)
-
+                self.save_imgs(imgs_sketch[2], epoch, step, 0)
+                self.save_imgs(imgs[2], epoch, step, 1)
                 hidden = text_encoder.init_hidden(batch_size)
                 # words_embs: batch_size x nef x seq_len
                 # sent_emb: batch_size x nef
@@ -310,7 +311,7 @@ class condGANTrainer(object):
                     # self.set_requires_grad_value(netsD, False)
                     netG.zero_grad()
                     errG_total, G_logs, cond_errG, uncond_errG, errG, lambda_chang_epoch = \
-                        generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, real_labels,
+                        generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, imgs, real_labels,
                                        words_embs, sent_emb, match_labels, cap_lens, class_ids,epoch)
                     kl_loss = KL_loss(mu, logvar)
                     errG_total += kl_loss
@@ -328,20 +329,20 @@ class condGANTrainer(object):
                 D_logs = ''
 
                 for _ in range(cfg.LOSS.D_runtime):
-                    for i in range(len(netsD)):
-                        netsD[i].zero_grad()
-                        errD, cond_errD, uncond_errD, cond_wrong_errD = discriminator_loss(netsD[i], imgs[i], imgs_sketch[i], fake_imgs[i],
-                                                  sent_emb, real_labels, fake_labels,epoch)
-                        # backward and update parameters
-                        errD.backward()
-                        optimizersD[i].step()
-                        # all errD
-                        errD_total += errD
-                        cond_errD_total += cond_errD
-                        uncond_errD_total+=uncond_errD
-                        cond_wrong_errD_total+=cond_wrong_errD
-                        
-                        D_logs += 'errD%d: %.2f ' % (i, errD.data.item())
+
+                    netsD.zero_grad()
+                    errD, cond_errD, uncond_errD, cond_wrong_errD = discriminator_loss(netsD, imgs[2], imgs_sketch[2], fake_imgs[2],
+                                              sent_emb, real_labels, fake_labels,epoch)
+                    # backward and update parameters
+                    errD.backward()
+                    optimizersD.step()
+                    # all errD
+                    errD_total += errD
+                    cond_errD_total += cond_errD
+                    uncond_errD_total+=uncond_errD
+                    cond_wrong_errD_total+=cond_wrong_errD
+
+                    D_logs += 'errD: %.2f ' % ( errD.data.item())
                 ######################################################
                 step += 1
                 gen_iterations += 1
@@ -865,8 +866,28 @@ class condGANTrainer(object):
                         #         fullpath = '%s_a%d.png' % (save_name, k)
                         #         # attention_maps images
                         #         # im.save(fullpath)
-    
-    
+
+    def save_imgs(self, imgsket, epoch, step, ko):
+        s_tmp = "../output/Imgsss/"
+        save_dir = '%s' % (s_tmp)
+        mkdir_p(save_dir)
+        ima = imgsket[0].data.cpu().numpy()
+        ima = (ima + 1.0) * 127.5
+        ima = ima.astype(np.uint8)
+        ima = np.transpose(ima, (1, 2, 0))
+        ima = Image.fromarray(ima)
+        fullpath1 = '%s/G_%d_%d_%d.png' \
+                    % (save_dir, epoch, step, ko)
+        ima.save(fullpath1)
+
+    def mkdir_p(path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
     def gen_examplesss(self):
 
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()

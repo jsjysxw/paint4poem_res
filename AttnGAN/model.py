@@ -390,16 +390,16 @@ class GET_IMAGE_G(nn.Module):
         super(GET_IMAGE_G, self).__init__()
         self.gf_dim = ngf
         self.img = nn.Sequential(
-            conv3x3(ngf, 3),
+            conv3x3(ngf, 1),
             nn.Tanh()
         )
         norm_layer = get_norm_layer(norm_type='batch')
-        self.net = ResnetGenerator(6, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=9)
+        self.net = ResnetGenerator(4, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=9)
         init_weights(self.net, init_type='normal')
 
     def forward(self, h_code, img_ketch):
         out_img1 = self.img(h_code)
-        concat = torch.cat((out_img1 * 0.8, img_ketch), 1)
+        concat = torch.cat((out_img1 * 0.6, img_ketch), 1)
         out_img = self.net(concat)
         return out_img
 
@@ -408,16 +408,16 @@ class GET_IMAGE_G2(nn.Module):
         super(GET_IMAGE_G2, self).__init__()
         self.gf_dim = ngf
         self.img = nn.Sequential(
-            conv3x3(ngf, 3),
+            conv3x3(ngf, 1),
             nn.Tanh()
         )
         norm_layer = get_norm_layer(norm_type='batch')
-        self.net = ResnetGenerator(6, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=6)
+        self.net = ResnetGenerator(4, 3, ngf, norm_layer=norm_layer, use_dropout=False, n_blocks=9)
         init_weights(self.net, init_type='normal')
 
     def forward(self, h_code, img_ketch):
         out_img1 = self.img(h_code)
-        concat = torch.cat((out_img1 * 0.2, img_ketch), 1)
+        concat = torch.cat((out_img1 * 0.6, img_ketch), 1)
         out_img = self.net(concat)
         return out_img
 
