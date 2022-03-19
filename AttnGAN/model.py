@@ -399,7 +399,7 @@ class GET_IMAGE_G(nn.Module):
 
     def forward(self, h_code, img_ketch):
         out_img1 = self.img(h_code)
-        concat = torch.cat((out_img1 * 0.6, img_ketch), 1)
+        concat = torch.cat((out_img1, img_ketch), 1)
         out_img = self.net(concat)
         return out_img
 
@@ -417,7 +417,7 @@ class GET_IMAGE_G2(nn.Module):
 
     def forward(self, h_code, img_ketch):
         out_img1 = self.img(h_code)
-        concat = torch.cat((out_img1 * 0.6, img_ketch), 1)
+        concat = torch.cat((out_img1, img_ketch), 1)
         out_img = self.net(concat)
         return out_img
 

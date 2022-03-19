@@ -30,7 +30,7 @@ def sent_loss(cnn_code, rnn_code, labels, class_ids,
             masks.append(mask.reshape((1, -1)))
         masks = np.concatenate(masks, 0)
         # masks: batch_size x batch_size
-        masks = torch.BoolTensor(masks)  ############# changed
+        masks = torch.BoolTensor(masks) ############# changed
         if cfg.CUDA:
             masks = masks.cuda()
 
@@ -117,7 +117,7 @@ def words_loss(img_features, words_emb, labels,
     if class_ids is not None:
         masks = np.concatenate(masks, 0)
         # masks: batch_size x batch_size
-        masks = torch.BoolTensor(masks)  ########### changed
+        masks = torch.BoolTensor(masks) ########### changed
         if cfg.CUDA:
             masks = masks.cuda()
 
@@ -136,26 +136,26 @@ def words_loss(img_features, words_emb, labels,
     return loss0, loss1, att_maps
 
 
+
+
 def DG_w_change(epoch):
-    if epoch <= 3 * (cfg.TRAIN.MAX_EPOCH / 6):
+    if epoch <= 3*(cfg.TRAIN.MAX_EPOCH/6):
         return 1
-    elif epoch <= 5 * (cfg.TRAIN.MAX_EPOCH / 6):
+    elif epoch <= 5*(cfg.TRAIN.MAX_EPOCH/6):
         return 0.5
     else:
         return 0.25
 
-
 def lambda_change(epoch):
-    if epoch <= 2 * (cfg.TRAIN.MAX_EPOCH / 6):
+    if epoch <=2*(cfg.TRAIN.MAX_EPOCH/6):
         return 1
-    elif epoch <= 4 * (cfg.TRAIN.MAX_EPOCH / 6):
+    elif epoch <=4*(cfg.TRAIN.MAX_EPOCH/6):
         return 5
     else:
         return 10
 
-
 # ##################Loss for G and Ds##############################
-def discriminator_loss(netD, real_imgs, real_b, fake_imgs, conditions,
+def discriminator_loss(netD, real_imgs, imgs_sketch, fake_imgs, conditions,
                        real_labels, fake_labels, epoch):
     # ######################################## # # Forward   原来的代码块
     # real_features = netD(real_imgs)
@@ -188,21 +188,21 @@ def discriminator_loss(netD, real_imgs, real_b, fake_imgs, conditions,
     if cfg.CUDA:
         criterionGAN = criterionGAN.cuda()
     # train with fake  按维数1拼接  (real_a, fake_b)（横着拼）
-    fake_ab = torch.cat((real_b, fake_imgs), 1)
+    fake_ab = torch.cat((imgs_sketch, fake_imgs), 1)
     # x.data（x.detach()） ，，x.data不能被autograd追踪求微分  torch.Size([10, 1, 30, 30])
     pred_fake = netD.forward(fake_ab.detach())
     # pred_fake  torch.Size([1, 1, 30, 30])
     loss_d_fake = criterionGAN(pred_fake, False)
 
     # train with real    按维数1拼接（横着拼）  torch.Size([1, 6, 256, 256])
-    real_ab = torch.cat((real_b, real_imgs), 1)
+    real_ab = torch.cat((imgs_sketch, real_imgs), 1)
     # torch.Size([1, 1, 30, 30])
     pred_real = netD.forward(real_ab)
     # tensor(4.7677, grad_fn= < MseLossBackward0 >)
     loss_d_real = criterionGAN(pred_real, True)
 
     # Combined D loss  tensor(3.5219, grad_fn=<MulBackward0>)
-    loss_d = (loss_d_fake + loss_d_real) * 0.5
+    loss_d = (loss_d_fake + loss_d_real)
     return loss_d, loss_d_fake, loss_d_fake + loss_d_real, loss_d_real
 
 
@@ -234,7 +234,8 @@ def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, imgs, real_labe
     loss_g_l1 = criterionL1(fake_imgs[2], imgs[2]) * 10
 
     loss_g = g_loss + loss_g_l1
-    errG += loss_g
+    errG += loss_g* \
+            cfg.TRAIN.SMOOTH.LAMBDA * lambda_change(epoch)
     cond_errG_total += loss_g
     uncond_errG_total += loss_g
     logs += 'g_loss: %.2f ' % ( loss_g.data.item())
@@ -280,9 +281,13 @@ def generator_loss(netsD, image_encoder, fake_imgs, imgs_sketch, imgs, real_labe
 
     errDAM += w_loss + s_loss
     logs += 'w_loss: %.2f s_loss: %.2f ' % (w_loss.data.item(), s_loss.data.item())
-    errG_total = errG + errDAM
+    errG_total = errG + errDAM * 0.3 
     lambda_chang_epoch = lambda_change(epoch)
+    print("lambda=",lambda_chang_epoch)
+    print("errDAM=",errDAM * 0.3)
+    print("errG=",errG)
     return errG_total, logs, cond_errG_total, uncond_errG_total, errG, lambda_chang_epoch
+
 
 
 ##################################################################

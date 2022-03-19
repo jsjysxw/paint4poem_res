@@ -8,7 +8,7 @@ from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 
 from PIL import Image
-import errno
+
 from pix2pix.networks import define_D
 from pix2pix.networks import define_D64
 from pix2pix.networks import define_D128
@@ -104,8 +104,9 @@ class condGANTrainer(object):
             # if cfg.TREE.BRANCH_NUM > 2:
             #     netsD.append(D_NET256())
             # TODO: if cfg.TREE.BRANCH_NUM > 3:
-
-            netsD = define_D(4, 64, 'basic')
+            
+            
+            netsD = define_D(6, 64, 'basic')
             # netsD = D_NET256()
         netG.apply(weights_init)
 
@@ -282,8 +283,7 @@ class condGANTrainer(object):
                 ######################################################
                 data = data_iter.next()
                 imgs, captions, cap_lens, class_ids, keys, imgs_sketch = prepare_data(data)
-                self.save_imgs(imgs_sketch[2], epoch, step, 0)
-                self.save_imgs(imgs[2], epoch, step, 1)
+                # self.save_imgs(imgs[2], epoch, step, 1)
                 hidden = text_encoder.init_hidden(batch_size)
                 # words_embs: batch_size x nef x seq_len
                 # sent_emb: batch_size x nef
@@ -699,14 +699,15 @@ class condGANTrainer(object):
             attn_maps = attention_maps[i]
             att_sze = attn_maps.size(2)
             for k in range(len(img)):
-                ima = img[k].data.cpu().numpy()
-                ima = (ima + 1.0) * 127.5
-                ima = ima.astype(np.uint8)
-                ima = np.transpose(ima, (1, 2, 0))
-                ima = Image.fromarray(ima)
-                fullpath1 = '%s/G_%d_%d_%d.png'\
-                        % (save_dir, gen_iterations, k, i)
-                ima.save(fullpath1)
+                if i==1 :
+                    ima = img[k].data.cpu().numpy()
+                    ima = (ima + 1.0) * 127.5
+                    ima = ima.astype(np.uint8)
+                    ima = np.transpose(ima, (1, 2, 0))
+                    ima = Image.fromarray(ima)
+                    fullpath1 = '%s/G_%d_%d_%d.png'\
+                            % (save_dir, gen_iterations, k, i)
+                    ima.save(fullpath1)
             
             img_set, _ = \
                 build_super_images(img, captions, self.ixtoword,
@@ -866,19 +867,19 @@ class condGANTrainer(object):
                         #         fullpath = '%s_a%d.png' % (save_name, k)
                         #         # attention_maps images
                         #         # im.save(fullpath)
-
     def save_imgs(self, imgsket, epoch, step, ko):
         s_tmp = "../output/Imgsss/"
         save_dir = '%s' % (s_tmp)
         mkdir_p(save_dir)
-        ima = imgsket[0].data.cpu().numpy()
-        ima = (ima + 1.0) * 127.5
-        ima = ima.astype(np.uint8)
-        ima = np.transpose(ima, (1, 2, 0))
-        ima = Image.fromarray(ima)
-        fullpath1 = '%s/G_%d_%d_%d.png' \
-                    % (save_dir, epoch, step, ko)
-        ima.save(fullpath1)
+        for l in range(len(imgsket)):
+            ima = imgsket[l].data.cpu().numpy()
+            ima = (ima + 1.0) * 127.5
+            ima = ima.astype(np.uint8)
+            ima = np.transpose(ima, (1, 2, 0))
+            ima = Image.fromarray(ima)
+            fullpath1 = '%s/G_%d_%d_%d_%d.png' \
+                        % (save_dir, epoch, step, ko, l)
+            ima.save(fullpath1)
 
     def mkdir_p(path):
         try:
@@ -888,6 +889,7 @@ class condGANTrainer(object):
                 pass
             else:
                 raise
+    
     def gen_examplesss(self):
 
         text_encoder, image_encoder, netG, netsD, start_epoch = self.build_models()

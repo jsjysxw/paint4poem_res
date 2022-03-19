@@ -2,7 +2,7 @@ CONFIG_NAME: 'atten/famous_poem'
 
 DATASET_NAME: 'atten_zikai_poem'
 DATA_DIR: '../data/Paint4Poem-Zikai-poem-subset/poem_image'
-GPU_ID: 0
+GPU_ID: -1
 WORKERS: 1
 
 B_VALIDATION: False  # True  # False
@@ -13,7 +13,7 @@ TREE:
 TRAIN:
     TRAINER: 'condGANTrainer'
     FLAG: False
-    NET_G: '../output/zikai_poem_from_scratch_lambda100_2022_02_26_13_48_43/Model/netG_epoch_1000.pth'
+    NET_G: '../output/zikai_poem_from_scratch_lambda100_2022_03_19_14_55_01/Model/netG_epoch_500.pth'
     #'../output/attn/zikai_poem/netG_epoch_600.pth'
     #'../output/TF_poem/tf_from_caption/Model/netG_epoch_650.pth'
     #'../output/5_26_colab/second_from_stratch/Model/netG_epoch_800.pth'
